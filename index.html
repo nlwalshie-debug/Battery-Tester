@@ -1,0 +1,1491 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="RAA Battery" />
+  <meta name="theme-color" content="#111111" />
+  <title>RAA Battery Assessment</title>
+  <link rel="manifest" href="manifest.json" />
+  <!-- React + Babel -->
+  <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; background: #111; }
+    body { -webkit-tap-highlight-color: transparent; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    const { useState, useEffect, useRef } = React;
+
+
+// ── DESIGN TOKENS ──
+const Y = "#FFD100";
+const BK = "#111111";
+const DG = "#2A2A2A";
+const MG = "#666666";
+const LG = "#F5F5F5";
+const BD = "#E2E2E2";
+const GR = "#1A7A3C";
+const AM = "#C07A00";
+const RD = "#C0392B";
+const WH = "#FFFFFF";
+
+const S = `
+  @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Barlow:wght@400;500;600&display=swap');
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  .wrap {
+    display: flex; flex-direction: column; align-items: center;
+    gap: 14px; padding: 20px 0 40px; min-height: 100vh;
+    background: #111; font-family: 'Barlow', sans-serif;
+  }
+  .tabs { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; max-width: 420px; padding: 0 10px; }
+  .tab {
+    background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.5);
+    border: 1px solid rgba(255,255,255,0.15); border-radius: 20px;
+    padding: 5px 12px; font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 700; font-size: 11px; letter-spacing: 1px;
+    text-transform: uppercase; cursor: pointer;
+  }
+  .tab.on { background: ${Y}; color: ${BK}; border-color: ${Y}; }
+  .applbl { font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 11px; color: rgba(255,255,255,0.25); letter-spacing: 2px; text-transform: uppercase; }
+
+  .phone {
+    width: 390px; min-height: 844px; background: ${LG};
+    border-radius: 48px; overflow: hidden;
+    box-shadow: 0 40px 120px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.08);
+    display: flex; flex-direction: column;
+  }
+  .sbar { background: ${BK}; padding: 14px 24px 10px; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
+  .stime { font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 15px; color: ${WH}; }
+  .scr { flex: 1; display: flex; flex-direction: column; overflow-y: auto; background: ${LG}; }
+
+  /* HEADER */
+  .hdr { background: ${BK}; padding: 14px 20px 18px; flex-shrink: 0; }
+  .back { background: none; border: none; color: ${Y}; font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 14px; cursor: pointer; padding: 0; margin-bottom: 10px; display: block; }
+  .prog { height: 3px; background: rgba(255,255,255,0.1); border-radius: 2px; margin-bottom: 12px; overflow: hidden; }
+  .progfill { height: 100%; background: ${Y}; border-radius: 2px; transition: width 0.4s ease; }
+  .steplbl { font-family: 'Barlow Condensed', sans-serif; font-size: 10px; color: rgba(255,255,255,0.35); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 3px; }
+  .hdrtitle { font-family: 'Barlow Condensed', sans-serif; font-weight: 800; font-size: 32px; color: ${WH}; line-height: 1.05; }
+  .hdrsub { font-size: 13px; color: rgba(255,255,255,0.45); margin-top: 4px; }
+
+  /* BODY */
+  .body { padding: 16px 18px; flex: 1; display: flex; flex-direction: column; gap: 12px; }
+  .card { background: ${WH}; border-radius: 12px; padding: 14px; box-shadow: 0 1px 4px rgba(0,0,0,0.07); }
+  .cardtitle { font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 11px; color: ${MG}; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 10px; }
+  .itext { font-size: 13px; color: ${DG}; line-height: 1.55; }
+
+  /* FORM */
+  .flbl { font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 11px; color: ${MG}; letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 5px; display: block; }
+  .finp { background: ${WH}; border: 2px solid ${BD}; border-radius: 8px; padding: 12px 14px; font-family: 'Barlow', sans-serif; font-size: 15px; color: ${BK}; outline: none; width: 100%; transition: border-color 0.2s; }
+  .finp:focus { border-color: ${Y}; }
+  .fsel { background: ${WH}; border: 2px solid ${BD}; border-radius: 8px; padding: 12px 14px; font-family: 'Barlow', sans-serif; font-size: 15px; color: ${BK}; outline: none; width: 100%; appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath fill='%23666' d='M5 6L0 0h10z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 14px center; cursor: pointer; }
+
+  /* BATTERY TYPE CARDS */
+  .btcard { background: ${WH}; border: 2px solid ${BD}; border-radius: 10px; padding: 12px 14px; display: flex; align-items: center; gap: 12px; cursor: pointer; transition: all 0.15s; margin-bottom: 8px; }
+  .btcard:last-child { margin-bottom: 0; }
+  .btcard.sel { border-color: ${Y}; background: #FFFAE6; }
+  .btico { font-size: 22px; width: 34px; text-align: center; flex-shrink: 0; }
+  .btinfo { flex: 1; }
+  .btname { font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 15px; color: ${BK}; }
+  .btdesc { font-size: 12px; color: #888; margin-top: 1px; }
+  .btchk { width: 21px; height: 21px; border-radius: 50%; border: 2px solid ${BD}; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 11px; transition: all 0.15s; }
+  .btcard.sel .btchk { background: ${Y}; border-color: ${Y}; }
+
+  /* NUMPAD */
+  .npdisplay { background: ${WH}; border: 2px solid ${BD}; border-radius: 10px; padding: 12px 16px; display: flex; align-items: baseline; gap: 6px; transition: border-color 0.2s; margin-bottom: 3px; }
+  .npdisplay.foc { border-color: ${Y}; }
+  .npdisplay.ok { border-color: ${GR}; }
+  .npdisplay.warn { border-color: ${AM}; }
+  .npdisplay.err { border-color: ${RD}; }
+  .npval { font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 40px; color: ${BK}; letter-spacing: -1px; line-height: 1; flex: 1; }
+  .npval.ph { color: #CCC; font-size: 30px; }
+  .npunit { font-family: 'Barlow Condensed', sans-serif; font-weight: 600; font-size: 19px; color: #999; margin-bottom: 3px; }
+  .npstatus { font-size: 11px; min-height: 16px; margin-bottom: 7px; padding: 0 3px; font-weight: 500; }
+  .npstatus.ok { color: ${GR}; }
+  .npstatus.warn { color: ${AM}; }
+  .npstatus.err { color: ${RD}; }
+  .npgrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; background: ${WH}; border-radius: 12px; padding: 11px; box-shadow: 0 1px 4px rgba(0,0,0,0.07); }
+  .npkey { background: ${LG}; border: none; border-radius: 9px; padding: 13px 8px; font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 21px; color: ${BK}; cursor: pointer; transition: all 0.1s; text-align: center; }
+  .npkey:active { background: ${Y}; transform: scale(0.95); }
+  .npkey.del { background: #FDECEA; color: ${RD}; }
+  .npkey.del:active { background: ${RD}; color: ${WH}; }
+
+  /* SEGMENT BUTTONS */
+  .segrow { display: flex; gap: 6px; }
+  .segbtn { flex: 1; padding: 11px 6px; border-radius: 9px; border: 2px solid ${BD}; background: ${WH}; font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 14px; color: ${MG}; cursor: pointer; text-align: center; transition: all 0.15s; }
+  .segbtn.on { background: ${Y}; border-color: ${Y}; color: ${BK}; }
+
+  /* ALERT BOXES */
+  .alertbox { border-radius: 10px; padding: 11px 13px; display: flex; gap: 9px; align-items: flex-start; }
+  .alertbox .aico { font-size: 15px; flex-shrink: 0; margin-top: 1px; }
+  .alertbox .atitle { font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 13px; color: ${DG}; margin-bottom: 3px; }
+  .alertbox .atxt { font-size: 12px; color: ${DG}; line-height: 1.5; }
+
+  /* TIMER */
+  .timercard { background: ${WH}; border-radius: 12px; padding: 18px 14px; display: flex; flex-direction: column; align-items: center; gap: 10px; box-shadow: 0 1px 4px rgba(0,0,0,0.07); }
+  .timerring { position: relative; width: 90px; height: 90px; }
+  .timersvg { transform: rotate(-90deg); }
+  .timerbg { fill: none; stroke: ${BD}; stroke-width: 6; }
+  .timerfill { fill: none; stroke: ${Y}; stroke-width: 6; stroke-linecap: round; transition: stroke-dashoffset 1s linear; }
+  .timerfill.done { stroke: ${GR}; }
+  .timernum { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); font-family: 'Barlow Condensed', sans-serif; font-weight: 800; font-size: 22px; color: ${BK}; }
+  .timerlbl { font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 12px; color: ${MG}; letter-spacing: 1px; text-transform: uppercase; text-align: center; }
+  .timerbtn { background: ${Y}; border: none; border-radius: 8px; padding: 9px 22px; font-family: 'Barlow Condensed', sans-serif; font-weight: 800; font-size: 13px; letter-spacing: 1px; text-transform: uppercase; cursor: pointer; color: ${BK}; }
+  .timerbtn.running { background: ${LG}; color: ${MG}; cursor: not-allowed; }
+
+  /* TREND SELECTOR */
+  .trendrow { display: flex; gap: 8px; }
+  .trendbtn { flex: 1; padding: 14px 10px; border-radius: 10px; border: 2px solid ${BD}; background: ${WH}; cursor: pointer; text-align: center; transition: all 0.15s; }
+  .trendbtn.rising.on { border-color: ${GR}; background: #F0FAF3; }
+  .trendbtn.falling.on { border-color: ${RD}; background: #FDECEA; }
+  .trendico { font-size: 24px; display: block; margin-bottom: 4px; }
+  .trendlbl { font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 13px; color: ${BK}; }
+  .trendsub { font-size: 11px; color: ${MG}; margin-top: 2px; }
+
+  /* RESULT */
+  .reshdr { padding: 24px 20px 20px; flex-shrink: 0; }
+  .resicon { font-size: 44px; display: block; margin-bottom: 10px; }
+  .resverd { font-family: 'Barlow Condensed', sans-serif; font-weight: 800; font-size: 48px; color: ${WH}; letter-spacing: -1px; line-height: 1; margin-bottom: 4px; }
+  .resdesc { font-size: 13px; color: rgba(255,255,255,0.65); line-height: 1.5; }
+  .rdscard { background: ${WH}; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.07); }
+  .rdstitle { background: ${LG}; padding: 9px 14px; font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 10px; color: ${MG}; letter-spacing: 2px; text-transform: uppercase; border-bottom: 1px solid ${BD}; }
+  .rdsrow { display: flex; align-items: center; padding: 10px 14px; border-bottom: 1px solid ${BD}; }
+  .rdsrow:last-child { border-bottom: none; }
+  .rdslbl { flex: 1; font-size: 12px; color: ${MG}; }
+  .rdsval { font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 15px; color: ${BK}; margin-right: 7px; }
+  .rdsdot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .dg { background: ${GR}; } .dw { background: ${AM}; } .dr { background: ${RD}; }
+
+  /* BUTTONS */
+  .btnp { background: ${Y}; color: ${BK}; border: none; border-radius: 9px; padding: 15px; font-family: 'Barlow Condensed', sans-serif; font-weight: 800; font-size: 16px; letter-spacing: 1.5px; text-transform: uppercase; cursor: pointer; width: 100%; transition: all 0.15s; }
+  .btnp:active { transform: scale(0.98); }
+  .btnp:disabled { opacity: 0.35; cursor: not-allowed; transform: none; }
+  .btns { background: ${WH}; color: ${MG}; border: 2px solid ${BD}; border-radius: 9px; padding: 13px; font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 14px; letter-spacing: 1px; text-transform: uppercase; cursor: pointer; width: 100%; }
+  .btnbot { padding: 13px 18px 26px; background: ${LG}; border-top: 1px solid ${BD}; flex-shrink: 0; display: flex; flex-direction: column; gap: 8px; }
+
+  /* FLAG STRIP */
+  .flagstrip { display: flex; gap: 6px; flex-wrap: wrap; }
+  .flag { padding: 4px 9px; border-radius: 20px; font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 11px; letter-spacing: 0.5px; }
+  .flag.g { background: #E8F5EE; color: ${GR}; }
+  .flag.w { background: #FFF3DC; color: ${AM}; }
+  .flag.r { background: #FDECEA; color: ${RD}; }
+`;
+
+// ── HELPERS ──
+const StatusBar = () => (
+  <div className="sbar">
+    <span className="stime">9:41</span>
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+      <rect x="2" y="7" width="16" height="10" rx="2" stroke="white" strokeWidth="2"/>
+      <path d="M18 10h2a1 1 0 011 1v2a1 1 0 01-1 1h-2" stroke="white" strokeWidth="2"/>
+      <rect x="4" y="9" width="10" height="6" rx="1" fill="white"/>
+    </svg>
+  </div>
+);
+
+const Hdr = ({ step, total, title, sub, onBack }) => {
+  const pct = Math.round((step / total) * 100);
+  return (
+    <div className="hdr">
+      <button className="back" onClick={onBack}>‹ Back</button>
+      <div className="prog"><div className="progfill" style={{ width: pct + "%" }} /></div>
+      <div className="steplbl">Step {step} of {total}</div>
+      <div className="hdrtitle">{title}</div>
+      {sub && <div className="hdrsub">{sub}</div>}
+    </div>
+  );
+};
+
+const Alert = ({ type, title, text }) => {
+  const cfg = {
+    good: { bg: "#F0FAF3", border: GR, icon: "✅" },
+    warn: { bg: "#FFF8E6", border: AM, icon: "⚠️" },
+    bad:  { bg: "#FDECEA", border: RD, icon: "🔴" },
+    info: { bg: "#E8F0FB", border: "#1A56A0", icon: "💡" },
+  }[type] || { bg: LG, border: BD, icon: "ℹ️" };
+  return (
+    <div className="alertbox" style={{ background: cfg.bg, border: `1.5px solid ${cfg.border}` }}>
+      <span className="aico">{cfg.icon}</span>
+      <div>
+        {title && <div className="atitle">{title}</div>}
+        <div className="atxt">{text}</div>
+      </div>
+    </div>
+  );
+};
+
+const NumPad = ({ value, onChange, unit, label, status, statusText, maxDec = 1, max = 999 }) => {
+  const handle = (k) => {
+    if (k === "del") { onChange(value.slice(0, -1)); return; }
+    if (k === "." && value.includes(".")) return;
+    if (value.includes(".") && (value.split(".")[1] || "").length >= maxDec) return;
+    const next = value + k;
+    if (parseFloat(next) > max || next.length > 6) return;
+    onChange(next);
+  };
+  const cls = status === "valid" ? "ok" : status === "warning" ? "warn" : status === "error" ? "err" : value ? "foc" : "";
+  return (
+    <div>
+      {label && <div className="flbl">{label}</div>}
+      <div className={"npdisplay " + cls}>
+        <div className={"npval" + (!value ? " ph" : "")}>{value || "0.0"}</div>
+        <div className="npunit">{unit}</div>
+      </div>
+      <div className={"npstatus " + (status === "valid" ? "ok" : status === "warning" ? "warn" : status === "error" ? "err" : "")}>
+        {statusText}
+      </div>
+      <div className="npgrid">
+        {["1","2","3","4","5","6","7","8","9",".","0","del"].map(k => (
+          <button key={k} className={"npkey" + (k === "del" ? " del" : "")} onClick={() => handle(k)}>
+            {k === "del" ? "⌫" : k}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+const Timer2Min = ({ onDone }) => {
+  const SECS = 120;
+  const [rem, setRem] = useState(SECS);
+  const [run, setRun] = useState(false);
+  const [done, setDone] = useState(false);
+  const ivRef = useRef(null);
+
+  const start = () => {
+    if (done) { setRem(SECS); setDone(false); }
+    setRun(true);
+  };
+
+  useEffect(() => {
+    if (!run) return;
+    ivRef.current = setInterval(() => {
+      setRem(p => {
+        if (p <= 1) {
+          clearInterval(ivRef.current);
+          setRun(false);
+          setDone(true);
+          onDone && onDone();
+          return 0;
+        }
+        return p - 1;
+      });
+    }, 1000);
+    return () => clearInterval(ivRef.current);
+  }, [run]);
+
+  const mins = Math.floor(rem / 60);
+  const secs = rem % 60;
+  const display = `${mins}:${String(secs).padStart(2, "0")}`;
+  const c = 2 * Math.PI * 40;
+  const offset = c - c * ((SECS - rem) / SECS);
+
+  return (
+    <div className="timercard">
+      <div className="timerring">
+        <svg className="timersvg" width="90" height="90" viewBox="0 0 90 90">
+          <circle className="timerbg" cx="45" cy="45" r="40" />
+          <circle className={"timerfill" + (done ? " done" : "")} cx="45" cy="45" r="40"
+            strokeDasharray={c} strokeDashoffset={offset} />
+        </svg>
+        <div className="timernum">{done ? "✓" : display}</div>
+      </div>
+      <div className="timerlbl">{done ? "Timer complete — enter second reading" : run ? "Observe current acceptance trend..." : "Start 2-minute observation window"}</div>
+      <button className={"timerbtn" + (run ? " running" : "")} onClick={start} disabled={run}>
+        {done ? "Restart" : run ? "Running..." : "Start Timer"}
+      </button>
+    </div>
+  );
+};
+
+// ── SCREEN 0: S.A.V.E INTRO ──
+const SaveScreen = ({ onNext }) => {
+  const items = [
+    {
+      letter: "S",
+      word: "Smell",
+      icon: "👃",
+      desc: "A sulfur or rotten egg smell can indicate a failing or overcharging battery. Inspect for acid leaks or corrosion around the terminals."
+    },
+    {
+      letter: "A",
+      word: "Age",
+      icon: "📅",
+      desc: "Battery age is a key indicator of remaining service life. Average life expectancy is 3–4 years — older batteries are more likely to fail under load."
+    },
+    {
+      letter: "V",
+      word: "Voltage",
+      icon: "⚡",
+      desc: "Static and load voltage readings reveal the battery's state of charge and ability to deliver current. Low or collapsing voltage under load points to a failing battery with reduced capacity."
+    },
+    {
+      letter: "E",
+      word: "Enlarged",
+      icon: "🔍",
+      desc: "A swollen or bulging battery case indicates internal damage from overcharging, excessive heat, or sulfation from lack of use. A physically enlarged battery should be replaced immediately."
+    },
+  ];
+  return (
+    <div className="scr">
+      <div className="hdr">
+        <div className="prog"><div className="progfill" style={{ width: "0%" }} /></div>
+        <div className="steplbl">Pre-Assessment · Battery Diagnosis</div>
+        <div className="hdrtitle">S.A.V.E</div>
+        <div className="hdrsub">Four key observations before you begin</div>
+      </div>
+      <div className="body">
+        <div className="card">
+          <div className="itext">Before collecting any readings, use the <strong>S.A.V.E</strong> framework to visually and physically inspect the battery. These four areas form the foundation of a thorough battery diagnosis.</div>
+        </div>
+        {items.map(item => (
+          <div key={item.letter} className="card" style={{ display: "flex", gap: 13, alignItems: "flex-start" }}>
+            <div style={{
+              width: 44, height: 44, borderRadius: 10, background: Y,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              flexShrink: 0
+            }}>
+              <span style={{ fontFamily: "'Barlow Condensed',sans-serif", fontWeight: 800, fontSize: 22, color: BK }}>{item.letter}</span>
+            </div>
+            <div style={{ flex: 1 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
+                <span style={{ fontFamily: "'Barlow Condensed',sans-serif", fontWeight: 800, fontSize: 17, color: BK }}>{item.word}</span>
+                <span style={{ fontSize: 15 }}>{item.icon}</span>
+              </div>
+              <div className="itext" style={{ fontSize: 12 }}>{item.desc}</div>
+            </div>
+          </div>
+        ))}
+        <Alert type="info" text="Complete your S.A.V.E inspection before proceeding. If a battery is physically enlarged, venting or leaking, do not proceed with testing — RECOMMEND REPLACEMENT IMMEDIATELY." />
+      </div>
+      <div className="btnbot">
+        <button className="btnp" onClick={onNext}>Begin Assessment</button>
+      </div>
+    </div>
+  );
+};
+
+// ── SCREEN 0.5: PRE-CHECK ──
+const PreCheckScreen = ({ onNext, onBack }) => {
+  const [checked, setChecked] = useState({ water: false, oil: false, terminals: false });
+  const allChecked = checked.water && checked.oil && checked.terminals;
+  const toggle = (key) => setChecked(p => ({ ...p, [key]: !p[key] }));
+
+  const icons = {
+    // Battery Check — rectangle battery with + and - terminals
+    terminals: (
+      <svg width="32" height="28" viewBox="0 0 36 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect x="4" y="8" width="28" height="16" rx="2" stroke={RD} strokeWidth="2.2"/>
+        <line x1="11" y1="8" x2="11" y2="4" stroke={RD} strokeWidth="2.5" strokeLinecap="round"/>
+        <line x1="25" y1="8" x2="25" y2="4" stroke={RD} strokeWidth="2.5" strokeLinecap="round"/>
+        <line x1="10" y1="16" x2="14" y2="16" stroke={RD} strokeWidth="2" strokeLinecap="round"/>
+        <line x1="12" y1="14" x2="12" y2="18" stroke={RD} strokeWidth="2" strokeLinecap="round"/>
+        <line x1="22" y1="16" x2="26" y2="16" stroke={RD} strokeWidth="2" strokeLinecap="round"/>
+      </svg>
+    ),
+    // Oil Warning — oil can with spout and drip
+    oil: (
+      <svg width="32" height="28" viewBox="0 0 36 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M6 22V13l4-4h1V7h6v2h2l4 4h1l3-2v3l-3 2v6a2 2 0 01-2 2H8a2 2 0 01-2-2z" stroke={RD} strokeWidth="2" strokeLinejoin="round"/>
+        <path d="M10 9h6" stroke={RD} strokeWidth="2" strokeLinecap="round"/>
+        <circle cx="29" cy="22" r="2" fill={RD}/>
+        <path d="M29 18v2" stroke={RD} strokeWidth="1.8" strokeLinecap="round"/>
+      </svg>
+    ),
+    // Temperature Warning — thermometer bulb with wavy lines beneath
+    water: (
+      <svg width="28" height="32" viewBox="0 0 28 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect x="11" y="2" width="6" height="16" rx="3" stroke={RD} strokeWidth="2"/>
+        <circle cx="14" cy="22" r="5" stroke={RD} strokeWidth="2"/>
+        <circle cx="14" cy="22" r="2.5" fill={RD}/>
+        <path d="M14 8v10" stroke={RD} strokeWidth="2" strokeLinecap="round"/>
+        <path d="M4 12c2-2 4 2 6 0" stroke={RD} strokeWidth="1.8" strokeLinecap="round"/>
+        <path d="M4 16c2-2 4 2 6 0" stroke={RD} strokeWidth="1.8" strokeLinecap="round"/>
+      </svg>
+    ),
+  };
+
+  const items = [
+    { key: "terminals", label: "Battery terminal condition and security confirmed", sub: "Terminals should be clean, free of corrosion, and firmly secured to the battery posts." },
+    { key: "oil",       label: "Engine oil level checked",                          sub: "Check the dipstick — ensure oil level is within the safe operating range." },
+    { key: "water",     label: "Engine coolant / water level checked",              sub: "Inspect the coolant reservoir — ensure the level is within the MIN/MAX range." },
+  ];
+
+  return (
+    <div className="scr">
+      <div className="hdr">
+        <button className="back" onClick={onBack}>‹ Back</button>
+        <div className="prog"><div className="progfill" style={{ width: "2%" }} /></div>
+        <div className="steplbl">Pre-Assessment · Safety Checks</div>
+        <div className="hdrtitle">Pre-Check</div>
+        <div className="hdrsub">Confirm before beginning the assessment</div>
+      </div>
+      <div className="body">
+        <div className="card">
+          <div className="itext">Before proceeding with the battery assessment, confirm the following items have been checked. All three must be completed to continue.</div>
+        </div>
+        {items.map(item => (
+          <div key={item.key} onClick={() => toggle(item.key)} style={{
+            borderRadius: 12, padding: "13px 14px",
+            boxShadow: "0 1px 4px rgba(0,0,0,0.07)",
+            border: `2px solid ${checked[item.key] ? GR : BD}`,
+            cursor: "pointer", display: "flex", alignItems: "center", gap: 12,
+            transition: "border-color 0.15s, background 0.15s",
+            background: checked[item.key] ? "#F0FAF3" : WH,
+          }}>
+            <div style={{
+              width: 44, height: 44, borderRadius: 10, flexShrink: 0,
+              background: checked[item.key] ? "#E0F2E9" : "#FFF0F0",
+              display: "flex", alignItems: "center", justifyContent: "center",
+            }}>
+              {icons[item.key]}
+            </div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontWeight: 700, fontSize: 15, color: BK, marginBottom: 3 }}>{item.label}</div>
+              <div style={{ fontSize: 12, color: MG, lineHeight: 1.4 }}>{item.sub}</div>
+            </div>
+            <div style={{
+              width: 26, height: 26, borderRadius: 6, flexShrink: 0,
+              border: `2px solid ${checked[item.key] ? GR : BD}`,
+              background: checked[item.key] ? GR : WH,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              color: WH, fontSize: 14, fontWeight: 700,
+              transition: "all 0.15s",
+            }}>
+              {checked[item.key] ? "✓" : ""}
+            </div>
+          </div>
+        ))}
+        {!allChecked && (
+          <Alert type="warn" text="All three items must be checked before proceeding with the battery assessment." />
+        )}
+        {allChecked && (
+          <Alert type="good" text="Pre-checks complete. You're ready to begin the battery assessment." />
+        )}
+      </div>
+      <div className="btnbot">
+        <button className="btnp" onClick={onNext} disabled={!allChecked}>Begin Battery Assessment</button>
+      </div>
+    </div>
+  );
+};
+
+// ── SCREEN 1: BATTERY TYPE ──
+const BatteryTypeScreen = ({ onNext, onBack, data, setData }) => {
+  const types = [
+    { id: "la",  icon: "🔋", name: "Lead-Acid",  desc: "Standard flooded — 12V" },
+    { id: "efb", icon: "⚡", name: "EFB",         desc: "Enhanced Flooded Battery — 12V" },
+    { id: "agm", icon: "🔵", name: "AGM",         desc: "Absorbent Glass Mat — 12V" },
+    { id: "li",  icon: "🟡", name: "Lithium",     desc: "LiFePO4 — 12.8V" },
+  ];
+  return (
+    <div className="scr">
+      <div className="hdr">
+        <button className="back" onClick={onBack}>‹ Back</button>
+        <div className="prog"><div className="progfill" style={{ width: "5%" }} /></div>
+        <div className="steplbl">Step 1 of 8 · Battery Assessment</div>
+        <div className="hdrtitle">Battery Type</div>
+        <div className="hdrsub">Select the battery chemistry</div>
+      </div>
+      <div className="body">
+        <div className="card">
+          <div className="itext">Identify the battery type from the label or vehicle documentation before proceeding.</div>
+        </div>
+        {types.map(t => (
+          <div key={t.id} className={"btcard" + (data.type === t.id ? " sel" : "")} onClick={() => setData(p => ({ ...p, type: t.id }))}>
+            <div className="btico">{t.icon}</div>
+            <div className="btinfo">
+              <div className="btname">{t.name}{t.id === "li" && <span style={{ fontFamily: "'Barlow Condensed',sans-serif", fontWeight: 700, fontSize: 10, background: "#E8F0FB", color: "#1A56A0", borderRadius: 4, padding: "2px 6px", marginLeft: 7, letterSpacing: 1, textTransform: "uppercase" }}>Coming Soon</span>}</div>
+              <div className="btdesc">{t.desc}</div>
+            </div>
+            <div className="btchk">{data.type === t.id ? "✓" : ""}</div>
+          </div>
+        ))}
+        {data.type === "li" && (
+          <Alert type="info" title="Lithium diagnostic pathway coming soon" text="Lithium LiFePO4 battery assessment requires a dedicated diagnostic pathway. This feature is currently under development. Select Lead-Acid, EFB or AGM to continue." />
+        )}
+      </div>
+      <div className="btnbot">
+        <button className="btnp" onClick={onNext} disabled={!data.type || data.type === "li"}>
+          {data.type === "li" ? "Lithium Pathway Coming Soon" : "Select Battery Type to Continue"}
+        </button>
+      </div>
+    </div>
+  );
+};
+
+// ── SCREEN 2: BATTERY AGE ──
+const AgeScreen = ({ onNext, onBack, data, setData }) => {
+  const [confirmed, setConfirmed] = useState(false);
+  const age = parseFloat(data.age);
+  const ageKnown = data.ageKnown;
+
+  const getStatus = () => {
+    if (!confirmed || !data.age) return { s: "", t: "" };
+    if (age > 4) return { s: "error", t: "⚠ Exceeds average 3–4 year service life" };
+    if (age >= 3) return { s: "warning", t: "⚠ Approaching end of service life" };
+    return { s: "valid", t: "✓ Within expected service life" };
+  };
+  const { s, t } = getStatus();
+
+  const canContinue = ageKnown === "no" || (ageKnown === "yes" && data.age && confirmed);
+
+  return (
+    <div className="scr">
+      <Hdr step={2} total={8} title="Battery Age" sub="How old is this battery?" onBack={onBack} />
+      <div className="body">
+
+        {/* Primary prompt */}
+        <div className="card">
+          <div className="cardtitle">Do you know the battery age?</div>
+          <div className="segrow" style={{ marginTop: 8 }}>
+            {[{ v: "yes", l: "Yes" }, { v: "no", l: "No — Unknown" }].map(o => (
+              <button key={o.v}
+                className={"segbtn" + (ageKnown === o.v ? " on" : "")}
+                onClick={() => { setData(p => ({ ...p, ageKnown: o.v, age: o.v === "no" ? "" : p.age })); setConfirmed(false); }}>
+                {o.l}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Unknown — flag notice */}
+        {ageKnown === "no" && (
+          <Alert type="warn" title="Age unverified" text="Battery age is unknown. This will be flagged on the result. Consider recommending replacement if other readings are borderline." />
+        )}
+
+        {/* Known — show numpad */}
+        {ageKnown === "yes" && (
+          <>
+            {confirmed && data.age && age > 4 && (
+              <Alert type="bad" title="Age concern" text="Battery exceeds the average 3–4 year service life. Replacement may be recommended regardless of other readings." />
+            )}
+            {confirmed && data.age && age >= 3 && age <= 4 && (
+              <Alert type="warn" title="Approaching end of life" text="Battery is between 3–4 years old. Monitor other readings closely." />
+            )}
+            <NumPad value={data.age || ""} onChange={v => { setData(p => ({ ...p, age: v })); setConfirmed(false); }} unit="yrs" label="Battery Age" status={s} statusText={t} maxDec={1} max={30} />
+          </>
+        )}
+
+      </div>
+      <div className="btnbot">
+        {ageKnown === "yes" && !confirmed
+          ? <button className="btnp" onClick={() => setConfirmed(true)} disabled={!data.age}>Confirm Reading</button>
+          : <button className="btnp" onClick={onNext} disabled={!canContinue}>Continue</button>
+        }
+      </div>
+    </div>
+  );
+};
+
+// ── SCREEN 3: DISCHARGE TIMEFRAME ──
+const DischargeScreen = ({ onNext, onBack, data, setData }) => {
+  const units = ["Hours", "Days", "Weeks", "Months"];
+  const sulfationInfo = {
+    Hours: { type: "good", text: "Vehicle driven recently — minimal sulfation risk. Battery should accept charge readily and show a rising current trend if healthy." },
+    Days:  { type: "info", text: "Vehicle unused for a few days — minor sulfation possible. Expect reasonable current acceptance with a rising trend if the battery is healthy." },
+    Weeks: { type: "warn", text: "Vehicle unused for weeks — moderate sulfation likely. Current acceptance may be reduced. A rising trend is still a positive sign." },
+    Months:{ type: "bad",  text: "Vehicle unused for an extended period — significant sulfation expected. Low current acceptance and a falling trend strongly indicates replacement." },
+  };
+  const info = data.dischargeUnit ? sulfationInfo[data.dischargeUnit] : null;
+  const ok = data.dischargeUnit && data.dischargeVal;
+  return (
+    <div className="scr">
+      <Hdr step={3} total={7} title="When was the vehicle driven last?" onBack={onBack} />
+      <div className="body">
+        <div>
+          <label className="flbl">Time Unit</label>
+          <div className="segrow">
+            {units.map(u => (
+              <button key={u} className={"segbtn" + (data.dischargeUnit === u ? " on" : "")}
+                onClick={() => setData(p => ({ ...p, dischargeUnit: u, dischargeVal: "" }))}>
+                {u}
+              </button>
+            ))}
+          </div>
+        </div>
+        {data.dischargeUnit && (
+          <NumPad
+            value={data.dischargeVal || ""}
+            onChange={v => setData(p => ({ ...p, dischargeVal: v }))}
+            unit={data.dischargeUnit.toLowerCase()}
+            label={"Number of " + data.dischargeUnit + " since last use"}
+            maxDec={0} max={999}
+          />
+        )}
+        {info && <Alert type={info.type} text={info.text} />}
+      </div>
+      <div className="btnbot">
+        <button className="btnp" onClick={onNext} disabled={!ok}>Continue</button>
+      </div>
+    </div>
+  );
+};
+
+// ── SCREEN 4: STATIC VOLTAGE ──
+const StaticVoltageScreen = ({ onNext, onBack, data, setData }) => {
+  const [confirmed, setConfirmed] = useState(false);
+  const v = parseFloat(data.staticV);
+
+  const getStatus = () => {
+    if (!confirmed || !data.staticV) return { s: "", t: "" };
+    if (v >= 12.6) return { s: "valid", t: "✓ Fully charged" };
+    if (v >= 12.4) return { s: "valid", t: "✓ Good charge level" };
+    if (v >= 12.0) return { s: "warning", t: "⚠ Partially discharged" };
+    if (v >= 10.0) return { s: "error", t: "✗ Heavily discharged" };
+    return { s: "error", t: "✗ Reading outside expected range" };
+  };
+  const { s, t } = getStatus();
+
+  const getContext = () => {
+    if (!confirmed || !data.staticV || !data.dischargeUnit) return null;
+    if (v >= 12.4) return null;
+    const longDisch = data.dischargeUnit === "Weeks" || data.dischargeUnit === "Months";
+    if (v < 12.4 && longDisch) return { type: "info", text: "Low voltage is consistent with the extended period of non-use. Continue testing — current acceptance will be the key indicator." };
+    if (v < 12.4 && !longDisch) return { type: "warn", text: "Low voltage is unexpected given the vehicle was driven recently. This may indicate a deeper battery issue or high parasitic drain." };
+    return null;
+  };
+  const ctx = getContext();
+
+  return (
+    <div className="scr">
+      <Hdr step={4} total={8} title="Static Voltage" sub="Resting voltage at battery terminals" onBack={onBack} />
+      <div className="body">
+        <div className="card">
+          <div className="itext">Measure the open-circuit voltage directly at the battery posts with no load applied. Check the terminal connections for condition and security. Ensure the vehicle is off and keys are away from the vehicle.</div>
+        </div>
+        {ctx && <Alert type={ctx.type} text={ctx.text} />}
+        {confirmed && parseFloat(data.staticV) < 9 && (
+          <Alert type="warn" title="Load Test will be skipped" text="OCV below 9V indicates a deeply discharged battery. The Load Test result would be unreliable at this voltage — the assessment will proceed directly to Charge Rate and Current Acceptance." />
+        )}
+        <NumPad value={data.staticV || ""} onChange={v => { setData(p => ({ ...p, staticV: v })); setConfirmed(false); }} unit="V" label="Static Voltage" status={s} statusText={t} maxDec={1} max={16} />
+      </div>
+      <div className="btnbot">
+        {!confirmed
+          ? <button className="btnp" onClick={() => setConfirmed(true)} disabled={!data.staticV}>Confirm Reading</button>
+          : <button className="btnp" onClick={onNext}>Continue</button>
+        }
+      </div>
+    </div>
+  );
+};
+
+// ── SCREEN 5: LOAD TEST ──
+const LoadTestScreen = ({ onNext, onBack, data, setData }) => {
+  const v = parseFloat(data.loadV);
+  const staticV = parseFloat(data.staticV);
+  const [confirmed, setConfirmed] = useState(false);
+
+  const getStatus = () => {
+    if (!confirmed || !data.loadV) return { s: "", t: "" };
+    if (v < 9.6)  return { s: "error", t: "✗ Below threshold — battery at fault" };
+    if (v <= 11.5) return { s: "valid", t: "✓ Within load test range" };
+    return { s: "valid", t: "✓ High voltage — good battery response" };
+  };
+  const { s, t } = getStatus();
+
+  const belowThreshold = confirmed && data.loadV && v < 9.6;
+
+  // Only show crank question if OCV is in failed cell range
+  const failedCellRange = staticV >= 9.0 && staticV <= 10.8;
+  const showCrankQ = confirmed && failedCellRange;
+
+  const YNButtons = ({ value, onChange }) => (
+    <div className="segrow" style={{ marginTop: 8 }}>
+      {[{ v: "yes", l: "Yes" }, { v: "no", l: "No" }].map(o => (
+        <button key={o.v} className={"segbtn" + (value === o.v ? " on" : "")} onClick={() => onChange(o.v)}>{o.l}</button>
+      ))}
+    </div>
+  );
+
+  const canContinue = confirmed && (
+    !failedCellRange || data.engineCranks !== undefined
+  );
+
+  return (
+    <div className="scr">
+      <Hdr step={5} total={8} title="Load Test" sub="Cranking voltage under starter load" onBack={onBack} />
+      <div className="body">
+        <div className="card">
+          <div className="itext">Attempt to start the vehicle. Watch your multimeter and record the <strong>lowest voltage seen</strong> during cranking. If the engine does not start, crank for no more than 3 seconds.</div>
+        </div>
+
+        <NumPad
+          value={data.loadV || ""}
+          onChange={v => { setData(p => ({ ...p, loadV: v, engineCranks: undefined })); setConfirmed(false); }}
+          unit="V" label="Cranking Voltage (lowest seen)"
+          status={s} statusText={t} maxDec={1} max={16}
+        />
+
+        {!confirmed && (
+          <div className="btnbot" style={{ padding: 0, background: "none", border: "none" }}>
+            <button className="btnp" onClick={() => setConfirmed(true)} disabled={!data.loadV}>Confirm Reading</button>
+          </div>
+        )}
+
+        {belowThreshold && (
+          <Alert type="bad" title="Voltage below threshold" text={`Cranking voltage dropped to ${v.toFixed(1)}V — below the 9.6V threshold.`} />
+        )}
+
+        {confirmed && !belowThreshold && !failedCellRange && (
+          <Alert type="good" title="Load test within range" text={`Cranking voltage held at ${v.toFixed(1)}V — within the acceptable range.`} />
+        )}
+
+        {/* Crank question — only shown when OCV is in failed cell range 9.0–10.8V */}
+        {showCrankQ && (
+          <div className="card">
+            <div className="cardtitle">Does the engine attempt to crank?</div>
+            <div className="itext" style={{ fontSize: 12, color: MG, marginBottom: 8 }}>OCV of {staticV.toFixed(1)}V indicates a possible failed cell — crank behaviour is needed to confirm.</div>
+            <YNButtons value={data.engineCranks} onChange={val => setData(p => ({ ...p, engineCranks: val }))} />
+          </div>
+        )}
+
+        {showCrankQ && data.engineCranks === "yes" && (
+          <Alert type="bad" title="Failed Cell indicated" text="OCV in the 9.0–10.8V range with engine cranking is consistent with a failed cell. Tap below to go straight to the result." />
+        )}
+
+        {showCrankQ && data.engineCranks === "no" && (
+          <Alert type="info" title="No crank — continue assessment" text="Engine did not crank. Continue to Charge Rate and Current Acceptance for further diagnosis." />
+        )}
+
+        {/* Plate degradation early exit notice */}
+        {confirmed && !belowThreshold && !failedCellRange && parseFloat(data.staticV) > 12 && parseFloat(data.loadV) < 9.6 && (
+          <Alert type="bad" title="Plate Degradation indicated" text="Good OCV with a collapsing load test voltage is consistent with plate degradation. Tap below to go straight to the result — no further testing required." />
+        )}
+      </div>
+      <div className="btnbot">
+        <button className="btnp" onClick={() => onNext(belowThreshold ? "replace" : "continue")} disabled={!canContinue}>
+          {(failedCellRange && data.engineCranks === "yes") || (parseFloat(data.staticV) > 12 && parseFloat(data.loadV) < 9.6 && confirmed)
+            ? "Go to Result"
+            : belowThreshold ? "Continue to Result" : "Continue"}
+        </button>
+      </div>
+    </div>
+  );
+};
+
+// ── SCREEN 5: PARASITIC DRAIN ──
+const ParasiticScreen = ({ onNext, onBack, data, setData }) => {
+  const [confirmed, setConfirmed] = useState(false);
+  const v = parseFloat(data.parasitic);
+  const getStatus = () => {
+    if (!confirmed || !data.parasitic) return { s: "", t: "" };
+    if (v < 1.0) return { s: "valid", t: "✓ Within acceptable range" };
+    return { s: "error", t: "✗ Excessive parasitic drain detected" };
+  };
+  const { s, t } = getStatus();
+  return (
+    <div className="scr">
+      <Hdr step={8} total={8} title="Parasitic Drain" sub="Current draw with vehicle off" onBack={onBack} />
+      <div className="body">
+        <div className="card">
+          <div className="itext">With the vehicle off and all doors closed, measure the current draw across the negative battery terminal. Readings under <strong>1.0A</strong> are acceptable.</div>
+        </div>
+        {confirmed && data.parasitic && v >= 1.0 && (
+          <Alert type="bad" title="Excessive drain detected" text={`${v.toFixed(1)}A is above the 1.0A threshold. This level of parasitic drain will discharge the battery over time. Investigate the source of drain before replacing the battery.`} />
+        )}
+        {data.parasiticSkipped && (
+          <Alert type="info" title="Not required" text="Parasitic drain test has been skipped. This will be noted in the result." />
+        )}
+        <NumPad value={data.parasitic || ""} onChange={v => { setData(p => ({ ...p, parasitic: v, parasiticSkipped: false })); setConfirmed(false); }} unit="A" label="Parasitic Drain" status={s} statusText={t} maxDec={2} max={20} />
+      </div>
+      <div className="btnbot">
+        {!confirmed && !data.parasiticSkipped
+          ? <>
+              <button className="btnp" onClick={() => setConfirmed(true)} disabled={!data.parasitic}>Confirm Reading</button>
+              <button className="btns" onClick={() => setData(p => ({ ...p, parasiticSkipped: true, parasitic: "" }))}>Not Required</button>
+            </>
+          : <button className="btnp" onClick={onNext}>Continue</button>
+        }
+      </div>
+    </div>
+  );
+};
+
+// ── SCREEN 6: CHARGE RATE VOLTAGE ──
+const ChargeRateScreen = ({ onNext, onBack, data, setData }) => {
+  const [confirmed, setConfirmed] = useState(false);
+  const v = parseFloat(data.chargeRate);
+  const getStatus = () => {
+    if (!confirmed || !data.chargeRate) return { s: "", t: "" };
+    if (v >= 13.5 && v <= 15.5) return { s: "valid", t: "✓ Charging system operating normally" };
+    if (v > 15.5) return { s: "error", t: "✗ Overcharging — possible regulator fault" };
+    if (v >= 13.0) return { s: "warning", t: "⚠ Suspect — apply high electrical load to confirm" };
+    return { s: "error", t: "✗ Not charging — check alternator / DC-DC charger" };
+  };
+  const { s, t } = getStatus();
+  return (
+    <div className="scr">
+      <Hdr step={6} total={8} title="Charge Rate" sub="Alternator or DC/DC charger output" onBack={onBack} />
+      <div className="body">
+        <div className="card">
+          <div className="itext">Start the vehicle and measure the voltage at the battery terminals. For hybrid and EV platforms, measure the DC/DC converter output. Healthy range is <strong>13.5V – 15.5V</strong>.</div>
+        </div>
+        {confirmed && data.chargeRate && v < 13.0 && (
+          <Alert type="bad" title="Charging system fault likely" text="Low charge rate means the battery will not be replenished during driving. Refer to an RAA Approved Repairer to inspect the alternator or DC/DC charger." />
+        )}
+        {confirmed && data.chargeRate && v >= 13.0 && v < 13.5 && (
+          <Alert type="warn" title="Charging system condition suspect" text="Apply a high electrical load (headlights, rear demister, blower motor) and monitor the charge rate output. If the voltage remains at the same figure under load, the charging system is functioning correctly. If the voltage drops further under load, recommend further diagnosis and repair by an RAA Approved Repairer." />
+        )}
+        {confirmed && data.chargeRate && v > 15.5 && (
+          <Alert type="bad" title="Overcharging detected" text="Voltage above 15.5V indicates a possible voltage regulator fault. This can damage the battery. Refer to an RAA Approved Repairer." />
+        )}
+        <NumPad value={data.chargeRate || ""} onChange={v => { setData(p => ({ ...p, chargeRate: v })); setConfirmed(false); }} unit="V" label="Charge Rate Voltage" status={s} statusText={t} maxDec={1} max={20} />
+      </div>
+      <div className="btnbot">
+        {!confirmed
+          ? <button className="btnp" onClick={() => setConfirmed(true)} disabled={!data.chargeRate}>Confirm Reading</button>
+          : <button className="btnp" onClick={onNext}>Continue</button>
+        }
+      </div>
+    </div>
+  );
+};
+
+// ── SCREEN 7: CURRENT ACCEPTANCE ──
+const CurrentAcceptanceScreen = ({ onNext, onBack, data, setData }) => {
+  const [timerDone, setTimerDone] = useState(false);
+  const [phase, setPhase] = useState("initial"); // initial | waiting | final
+  const [initialConfirmed, setInitialConfirmed] = useState(false);
+  const [finalConfirmed, setFinalConfirmed] = useState(false);
+
+  const startTimer = () => setPhase("waiting");
+
+  const initialOk = initialConfirmed && data.acceptInitial && parseFloat(data.acceptInitial) >= 0;
+  const finalOk = finalConfirmed && data.acceptFinal && parseFloat(data.acceptFinal) >= 0;
+  const trend = initialConfirmed && finalConfirmed && data.acceptInitial && data.acceptFinal
+    ? parseFloat(data.acceptFinal) > parseFloat(data.acceptInitial) ? "rising"
+    : parseFloat(data.acceptFinal) < parseFloat(data.acceptInitial) ? "falling"
+    : "stable"
+    : null;
+
+  const canContinue = phase === "final" && finalOk;
+
+  return (
+    <div className="scr">
+      <Hdr step={7} total={8} title="Current Acceptance" sub="Charge acceptance trend over 2 minutes" onBack={onBack} />
+      <div className="body">
+
+        {/* Phase 1: Initial reading */}
+        <div className="card">
+          <div className="cardtitle">Initial Reading</div>
+          <div className="itext">Boost start the vehicle to assess battery recovery with an inductive current meter. Connect the current meter to all negative battery cables, wait 15 seconds, then enter the current acceptance reading shown on the current meter display.</div>
+        </div>
+        <NumPad
+          value={data.acceptInitial || ""}
+          onChange={v => {
+            setData(p => ({ ...p, acceptInitial: v, acceptFinal: "", acceptanceSkipped: false }));
+            setPhase("initial");
+            setTimerDone(false);
+            setInitialConfirmed(false);
+            setFinalConfirmed(false);
+          }}
+          unit="A"
+          label="Initial Current (A)"
+          maxDec={1} max={200}
+        />
+
+        {data.acceptanceSkipped && (
+          <Alert type="info" title="Not required" text="Current acceptance test has been skipped. The result will be based on the remaining readings." />
+        )}
+
+        {/* Phase 2: Timer */}
+        {data.acceptInitial && !initialConfirmed && (
+          <button className="btnp" onClick={() => setInitialConfirmed(true)}>Confirm Initial Reading</button>
+        )}
+        {initialOk && phase !== "initial" || (initialOk && phase === "initial" && initialConfirmed) ? (
+          phase === "initial" ? (
+            <button className="btnp" style={{ marginTop: 0 }} onClick={startTimer}>
+              Start 2-Minute Observation
+            </button>
+          ) : (
+            <>
+              <Timer2Min onDone={() => { setTimerDone(true); setPhase("final"); }} />
+              {/* Phase 3: Final reading */}
+              {(timerDone || phase === "final") && (
+                <>
+                  <div className="card">
+                    <div className="cardtitle">Final Reading</div>
+                    <div className="itext">Enter the current reading now shown on the charger after 2 minutes.</div>
+                  </div>
+                  <NumPad
+                    value={data.acceptFinal || ""}
+                    onChange={v => { setData(p => ({ ...p, acceptFinal: v })); setFinalConfirmed(false); }}
+                    unit="A"
+                    label="Final Current (A)"
+                    maxDec={1} max={200}
+                  />
+                  {data.acceptFinal && !finalConfirmed && (
+                    <button className="btnp" onClick={() => setFinalConfirmed(true)}>Confirm Final Reading</button>
+                  )}
+                  {finalConfirmed && data.acceptInitial && data.acceptFinal && (() => {
+                    const iA = parseFloat(data.acceptInitial);
+                    const fA = parseFloat(data.acceptFinal);
+                    const age = parseFloat(data.age);
+                    const ageOld = !isNaN(age) && age > 4;
+
+                    // Pattern 1: <1A — open circuit / permanent sulfation
+                    if (iA < 1) return (
+                      <Alert type="bad" title="Possible open circuit — Replace immediately"
+                        text={`Current acceptance is below 1A. ${parseFloat(data.staticV) >= 12.0 && parseFloat(data.loadV) < 2 ? "OCV above 12V with voltage collapse under load indicates an open circuit." : "OCV below 3V indicates permanent sulfation damage."} Battery requires immediate replacement before driving the vehicle.`} />
+                    );
+
+                    // Pattern 2: 2–9A with any rising trend — sulfation, possible recovery
+                    if (iA >= 2 && iA <= 9 && fA > iA) return (
+                      <Alert type={ageOld ? "bad" : "warn"}
+                        title={ageOld ? "Sulfation — Replace (age >4 years)" : "Sulfation — possible recovery"}
+                        text={ageOld
+                          ? `Current rose from ${iA}A to ${fA}A, indicating sulfation with some recovery potential. However, at over 4 years old, automotive batteries normally last 3–4 years. For long-term reliability, replacement is recommended irrespective of current recovery.`
+                          : `Current rose from ${iA}A to ${fA}A. This pattern is consistent with sulfation — the battery may recover with a full recharge. Recommend recharging and retesting before replacing.`} />
+                    );
+
+                    // Pattern 3: 30–40A initial dropping to <25A — plate degradation
+                    if (iA >= 30 && iA <= 40 && fA < 25) return (
+                      <Alert type="bad" title="Plate degradation — Replace"
+                        text={`Current dropped from ${iA}A to ${fA}A — a steady decline from 30–40A to below 25A within 2 minutes is a strong indicator of plate degradation. Battery replacement is required.`} />
+                    );
+
+                    // Pattern 4: ≥40A steady — discharged battery
+                    if (iA >= 40 && fA >= 40) return (
+                      <Alert type={ageOld ? "bad" : "warn"}
+                        title={ageOld ? "Discharged battery — Replace (age >4 years)" : "Discharged battery — Recharge"}
+                        text={ageOld
+                          ? `Current acceptance is steady at ${fA}A, consistent with a generally discharged battery. However, at over 4 years old, long-term reliability cannot be assured. Replacement is recommended irrespective of current recovery.`
+                          : `Steady current acceptance of ${fA}A over 2 minutes is consistent with a generally discharged battery. Recommend a full recharge and retest before replacing.`} />
+                    );
+
+                    // Pattern 5: steady 10–20A — plate degradation
+                    if (iA >= 10 && iA <= 20 && fA >= 10 && fA <= 20 && Math.abs(fA - iA) <= 3) return (
+                      <Alert type="bad" title="Plate degradation — Replace"
+                        text={`Current acceptance is steady between ${iA}A and ${fA}A. A stable reading in the 10–20A range without rising indicates plate degradation. Battery replacement is required.`} />
+                    );
+
+                    // Default — no specific pattern matched
+                    const rising = fA > iA;
+                    const falling = fA < iA;
+                    return (
+                      <Alert type={falling ? "bad" : rising ? "warn" : "warn"}
+                        title={falling ? "Falling trend — review required" : rising ? "Rising trend — monitor" : "Stable — inconclusive"}
+                        text={falling
+                          ? `Current dropped from ${iA}A to ${fA}A. Continue to the correlation analysis for a full picture.`
+                          : rising
+                          ? `Current rose from ${iA}A to ${fA}A. Continue to the correlation analysis for a full picture.`
+                          : `Current held at ${iA}A. Continue to the correlation analysis for a full picture.`} />
+                    );
+                  })()}
+                </>
+              )}
+            </>
+          )
+        ) : null}
+      </div>
+      <div className="btnbot">
+        {data.acceptanceSkipped
+          ? <button className="btnp" onClick={() => onNext(null)}>Continue to Result</button>
+          : <button className="btnp" onClick={() => onNext(trend)} disabled={!canContinue}>See Result</button>
+        }
+        {!data.acceptanceSkipped && !canContinue && (
+          <button className="btns" onClick={() => setData(p => ({ ...p, acceptanceSkipped: true }))}>Not Required</button>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// ── DIAGNOSTIC LOGIC ──
+const getVerdict = (data, trend, loadOutcome) => {
+  const age        = parseFloat(data.age);
+  const parasitic  = parseFloat(data.parasitic);
+  const chargeRate = parseFloat(data.chargeRate);
+  const staticV    = parseFloat(data.staticV);
+  const loadV      = parseFloat(data.loadV);
+  const iA         = parseFloat(data.acceptInitial);
+  const fA         = parseFloat(data.acceptFinal);
+  const ageOld     = !isNaN(age) && age > 4;
+  const ageYoung   = !isNaN(age) && age < 3;
+  const flags      = [];
+
+  // ── FLAG BUILDING ──
+
+  // Load test
+  const loadTestReliable = staticV >= 5.0;
+  if (loadOutcome === "abort") {
+    flags.push({ label: "Load test aborted — non-battery fault likely", sev: "w" });
+  } else if (!loadTestReliable && data.loadV) {
+    flags.push({ label: `Load test ${loadV.toFixed(1)}V — unreliable (OCV too low)`, sev: "w" });
+  } else if (data.loadV && loadV < 9.6) {
+    flags.push({ label: `Load test ${loadV.toFixed(1)}V — below threshold`, sev: "r" });
+  } else if (data.loadV) {
+    flags.push({ label: `Load test ${loadV.toFixed(1)}V — passed`, sev: "g" });
+  }
+
+  // Age
+  if (data.ageKnown === "no") {
+    flags.push({ label: "Age unknown — unverified", sev: "w" });
+  } else if (age > 4) {
+    flags.push({ label: "Age > 4 years", sev: "r" });
+  } else if (age >= 3) {
+    flags.push({ label: "Age 3–4 years", sev: "w" });
+  } else {
+    flags.push({ label: "Age within service life", sev: "g" });
+  }
+
+  // Discharge context
+  const longDischarge = data.dischargeUnit === "Weeks" || data.dischargeUnit === "Months";
+  if (longDischarge) flags.push({ label: `Unused for ${data.dischargeVal} ${data.dischargeUnit.toLowerCase()} — sulfation risk`, sev: "w" });
+  else flags.push({ label: `Last used ${data.dischargeVal} ${data.dischargeUnit.toLowerCase()} ago`, sev: "g" });
+
+  // Static voltage
+  if (staticV < 5.0)        flags.push({ label: `Static voltage ${staticV.toFixed(1)}V — critically low`, sev: "r" });
+  else if (staticV < 9.0)   flags.push({ label: `Static voltage ${staticV.toFixed(1)}V — severely discharged`, sev: "r" });
+  else if (staticV <= 10.8) flags.push({ label: `Static voltage ${staticV.toFixed(1)}V — failed cell range`, sev: "r" });
+  else if (staticV < 12.0)  flags.push({ label: `Static voltage ${staticV.toFixed(1)}V — heavily discharged`, sev: "r" });
+  else if (staticV < 12.4)  flags.push({ label: `Static voltage ${staticV.toFixed(1)}V — low charge`, sev: "w" });
+  else flags.push({ label: `Static voltage ${staticV.toFixed(1)}V — good`, sev: "g" });
+
+  // Parasitic drain
+  if (data.parasiticSkipped) {
+    flags.push({ label: "Parasitic drain — not tested", sev: "w" });
+  } else if (parasitic >= 1.0) {
+    flags.push({ label: `Parasitic drain ${parasitic.toFixed(1)}A — excessive`, sev: "r" });
+  } else {
+    flags.push({ label: `Parasitic drain ${parasitic.toFixed(1)}A — acceptable`, sev: "g" });
+  }
+
+  // Charge rate
+  const chargeRateNormal = chargeRate >= 13.5 && chargeRate <= 15.5;
+  const chargeRateLow    = chargeRate >= 13.0 && chargeRate < 13.5;
+  const chargeRateFault  = chargeRate < 13.0 || chargeRate > 15.5;
+  const ocvLowFault      = staticV < 5 && !data.acceptanceSkipped && fA < 5;
+  if (chargeRateFault && ocvLowFault) flags.push({ label: `Charge rate ${chargeRate.toFixed(1)}V — fault likely`, sev: "r" });
+  else if (chargeRateFault) flags.push({ label: `Charge rate ${chargeRate.toFixed(1)}V — outside normal range`, sev: "w" });
+  else if (chargeRateLow)   flags.push({ label: `Charge rate ${chargeRate.toFixed(1)}V — suspect, load test recommended`, sev: "w" });
+  else flags.push({ label: `Charge rate ${chargeRate.toFixed(1)}V — normal`, sev: "g" });
+
+  // Current acceptance flags
+  if (data.acceptanceSkipped) {
+    flags.push({ label: "Current acceptance — not tested", sev: "w" });
+  } else if (!isNaN(iA) && !isNaN(fA)) {
+    const rising  = fA > iA;
+    const stable  = Math.abs(fA - iA) <= 3;
+    const falling = fA < iA - 3;
+    if      (fA < 1)                         flags.push({ label: `Acceptance ${iA}A → ${fA}A — critically low`, sev: "r" });
+    else if (fA >= 40 && fA <= 60 && stable) flags.push({ label: `Acceptance ${iA}A → ${fA}A — high stable`, sev: "w" });
+    else if (fA > 10 && rising)              flags.push({ label: `Acceptance ${iA}A → ${fA}A — increasing`, sev: "w" });
+    else if (fA > 2 && rising)               flags.push({ label: `Acceptance ${iA}A → ${fA}A — slowly increasing`, sev: "w" });
+    else if (fA < 30 && falling)             flags.push({ label: `Acceptance ${iA}A → ${fA}A — dropping`, sev: "r" });
+    else if (fA >= 2 && fA <= 30 && stable)  flags.push({ label: `Acceptance ${iA}A → ${fA}A — stable low`, sev: "r" });
+    else                                     flags.push({ label: `Acceptance ${iA}A → ${fA}A`, sev: "w" });
+  }
+
+  // ── DIAGNOSIS DETECTION (priority order) ──
+  let diagnosis = null;
+  const hasAcceptance = !data.acceptanceSkipped && !isNaN(iA) && !isNaN(fA);
+  const rising  = hasAcceptance && fA > iA;
+  const stable  = hasAcceptance && Math.abs(fA - iA) <= 3;
+  const falling = hasAcceptance && fA < iA - 3;
+
+  // 1. Internal Short Circuit: OCV <5V + final acceptance >=90A stable or increasing
+  if (!isNaN(staticV) && staticV < 5 && hasAcceptance && fA >= 90 && (stable || rising)) {
+    diagnosis = {
+      key: "internal_short", title: "Internal Short Circuit", icon: "⚡", color: RD,
+      text: "This battery has developed an internal short circuit. All available current from the charging system is being absorbed by the battery. Due to the extensive heat, this battery will gas and cause a fire risk. This battery requires immediate replacement before driving the vehicle.",
+      recommendation: "Replace Battery Immediately Before Driving Vehicle", action: "replace_immediate"
+    };
+
+  // 2. Open Circuit: OCV >12V + Load <1V + final acceptance <1A
+  } else if (!isNaN(staticV) && staticV > 12 && !isNaN(loadV) && loadV < 1 && hasAcceptance && fA < 1) {
+    diagnosis = {
+      key: "open_circuit", title: "Open Circuit", icon: "🔌", color: RD,
+      text: "This battery has developed an internal open circuit. As the battery will not provide or absorb current, this battery will require immediate replacement before driving the vehicle.",
+      recommendation: "Replace Battery Immediately Before Driving Vehicle", action: "replace_immediate"
+    };
+
+  // 3. Sulfation – Permanent Damage: final acceptance <1A (all remaining <1A cases)
+  } else if (hasAcceptance && fA < 1) {
+    diagnosis = {
+      key: "sulfation_permanent", title: "Sulfation – Permanent Damage", icon: "🧪", color: RD,
+      text: "This battery has developed a significant sulfation layer over the lead plates. This is likely cause by the battery entering a deep discharge state over an extended period of time. This sulfation layer is significant enough that the battery cannot recover. This battery has developed a significant high internal resistance due to the sulfation condition. This battery will require immediate replacement before driving the vehicle.",
+      recommendation: "Replace Battery Immediately Before Driving Vehicle", action: "replace_immediate"
+    };
+
+  // 4. Failed Cell: OCV 9.0–10.8V + engine cranks YES
+  //             OR: OCV 9.0–10.8V + charge rate normal + acceptance <20A dropping
+  } else if (!isNaN(staticV) && staticV >= 9.0 && staticV <= 10.8 &&
+    (data.engineCranks === "yes" ||
+     (chargeRateNormal && hasAcceptance && fA < 20 && falling))) {
+    diagnosis = {
+      key: "failed_cell", title: "Failed Cell", icon: "🔋", color: RD,
+      text: "An automotive battery consists of 6 cells connected in series. This battery has had one of these cells fail. This battery cannot be recharged to recover a failed cell. This battery will require immediate replacement.",
+      recommendation: "Replace Battery", action: "replace_immediate"
+    };
+
+  // 5. Plate Degradation: OCV >12V + Load <9.6V (standalone, no acceptance needed)
+  //                    OR charge rate 13.5–15.5V + final <30A dropping OR 2–30A stable
+  } else if (
+    (!isNaN(staticV) && staticV > 12 && !isNaN(loadV) && loadV < 9.6) ||
+    (chargeRateNormal && hasAcceptance && ((fA < 30 && falling) || (fA >= 2 && fA <= 30 && stable)))
+  ) {
+    diagnosis = {
+      key: "plate_degradation", title: "Plate Degradation", icon: "📉", color: RD,
+      text: "The lead plates within the battery have degraded. This means the battery is unable to accept sufficient current or hold an appropriate charge. Battery plates will degrade over time due to the sulfuric acid electrolyte surrounding the plates. Batteries will generally last 3-4 years. This battery will require replacement to ensure reliability.",
+      recommendation: "Replace Battery", action: "replace"
+    };
+
+  // 6. Discharged General vs Sulfation Recovery — charge rate 13.5–14.8V + acceptance pattern
+  } else if (chargeRate >= 13.5 && chargeRate <= 14.8 && hasAcceptance) {
+    const dischargedMatch = fA >= 40 && fA <= 60 && stable;
+    const sulfationMatch  = fA > 2 && rising;
+    if (dischargedMatch && sulfationMatch) {
+      // Both match — highest fA wins → Discharged
+      diagnosis = {
+        key: "discharged_general", title: "Discharged Battery – General", icon: "🔋", color: ageOld ? RD : AM,
+        text: "This battery has entered a discharged state and is currently recovering well. For the battery to be reliable, the battery will require recharging via a modern Smart Charger device.",
+        recommendation: ageOld ? "Replace Battery" : "Recharge Battery", action: ageOld ? "replace" : "recharge"
+      };
+    } else if (dischargedMatch) {
+      diagnosis = {
+        key: "discharged_general", title: "Discharged Battery – General", icon: "🔋", color: ageOld ? RD : AM,
+        text: "This battery has entered a discharged state and is currently recovering well. For the battery to be reliable, the battery will require recharging via a modern Smart Charger device.",
+        recommendation: ageOld ? "Replace Battery" : "Recharge Battery", action: ageOld ? "replace" : "recharge"
+      };
+    } else if (sulfationMatch) {
+      diagnosis = {
+        key: "sulfation_recovery", title: "Sulfation – Possible Recovery", icon: "🧪", color: ageOld ? RD : AM,
+        text: "This battery has developed a sulfation layer over the lead plates. This is likely cause by a deep discharge state over an extended period of time. The battery is gradually accepting charge over time. For the battery to be reliable, the battery will require recharging via a modern Smart Charger device. Alternatively, the battery can be replaced with a new item to ensure reliability.",
+        recommendation: ageOld ? "Replace Battery" : "Recharge Battery", action: ageOld ? "replace" : "recharge"
+      };
+    }
+  }
+
+  // ── OVERALL VERDICT ──
+  const hasRed   = flags.some(f => f.sev === "r");
+  const hasAmber = flags.some(f => f.sev === "w");
+  const parasiticFault = !data.parasiticSkipped && parasitic >= 1.0;
+
+  // Abort overrides everything
+  if (loadOutcome === "abort") {
+    return {
+      verdict: "REFER", hdrBg: "#1A56A0", icon: "🔧",
+      msg: "The load test could not be completed due to a non-battery fault. The battery voltage was maintained during cranking but the vehicle did not start. Refer the customer to an RAA Approved Repairer for further diagnosis.",
+      flags, diagnosis: null
+    };
+  }
+
+  let verdict, hdrBg, icon, msg;
+
+  if (diagnosis) {
+    if (diagnosis.action === "recharge") {
+      verdict = "RECHARGE"; hdrBg = AM; icon = "⚡";
+      msg = diagnosis.recommendation + " — " + diagnosis.title + ".";
+    } else {
+      verdict = "REPLACE"; hdrBg = RD; icon = "🔴";
+      msg = diagnosis.recommendation + " — " + diagnosis.title + " detected.";
+    }
+  } else if (hasRed) {
+    verdict = "REPLACE"; hdrBg = RD; icon = "🔴";
+    if (parasiticFault) {
+      msg = "Excessive parasitic drain detected. Identify and resolve the drain source before replacing the battery.";
+    } else if (ageOld) {
+      msg = "Battery age exceeds expected service life. Replacement is recommended.";
+    } else {
+      msg = "One or more readings indicate the battery is no longer serviceable. Replacement is recommended.";
+    }
+  } else if (hasAmber) {
+    verdict = "MONITOR"; hdrBg = AM; icon = "⚠️";
+    msg = "Some readings are borderline. Recheck and monitor — retest in 4–6 weeks if condition persists.";
+  } else {
+    verdict = "GOOD"; hdrBg = GR; icon = "✅";
+    msg = "All readings are within acceptable parameters. The battery and charging system appear to be operating normally.";
+  }
+
+  return { verdict, hdrBg, icon, msg, flags, diagnosis };
+};
+// ── SCREEN 8: RESULT ──
+const ResultScreen = ({ onBack, data, trend, loadOutcome, onNewTest }) => {
+  const { verdict, hdrBg, icon, msg, flags, diagnosis } = getVerdict(data, trend, loadOutcome);
+  const typeLabels = { la: "Lead-Acid 12V", efb: "EFB 12V", agm: "AGM 12V" };
+  const trendLabel = trend === "rising" ? "Rising ↑" : trend === "falling" ? "Falling ↓" : "Stable →";
+  const trendDot = trend === "rising" ? "dg" : trend === "falling" ? "dr" : "dw";
+
+  const readings = [
+    { l: "Battery Type", v: typeLabels[data.type] || "—", d: "dg" },
+    { l: "Battery Age", v: data.ageKnown === "no" ? "Unknown" : (data.age || "—") + " yrs", d: data.ageKnown === "no" ? "dw" : parseFloat(data.age) > 4 ? "dr" : parseFloat(data.age) >= 3 ? "dw" : "dg" },
+    { l: "Last Used", v: (data.dischargeVal || "—") + " " + (data.dischargeUnit || "").toLowerCase() + " ago", d: (data.dischargeUnit === "Months" || data.dischargeUnit === "Weeks") ? "dw" : "dg" },
+    { l: "Static Voltage", v: (data.staticV || "—") + "V", d: parseFloat(data.staticV) >= 12.4 ? "dg" : parseFloat(data.staticV) >= 12.0 ? "dw" : "dr" },
+    { l: "Load Test Voltage", v: data.loadV ? data.loadV + "V" : "—", d: parseFloat(data.loadV) >= 9.6 ? "dg" : "dr" },
+    { l: "Parasitic Drain", v: data.parasiticSkipped ? "Not tested" : (data.parasitic || "—") + "A", d: data.parasiticSkipped ? "dw" : parseFloat(data.parasitic) < 1 ? "dg" : "dr" },
+    { l: "Charge Rate", v: (data.chargeRate || "—") + "V", d: parseFloat(data.chargeRate) >= 13.5 && parseFloat(data.chargeRate) <= 15.5 ? "dg" : "dr" },
+    { l: "Acceptance Trend", v: data.acceptanceSkipped ? "Not tested" : (data.acceptInitial && data.acceptFinal ? `${data.acceptInitial}A → ${data.acceptFinal}A` : "—"), d: data.acceptanceSkipped ? "dw" : trendDot },
+  ];
+
+  return (
+    <div className="scr">
+      <div className="reshdr" style={{ background: hdrBg }}>
+        <button className="back" onClick={onBack} style={{ color: WH }}>‹ Back</button>
+        <span className="resicon">{icon}</span>
+        <div className="resverd">{verdict}</div>
+        <div className="resdesc">{msg}</div>
+      </div>
+
+      <div className="body">
+        {/* Age >3 years prompt — shown when a recoverable condition is being recommended as Replace due to age */}
+        {data.ageKnown !== "no" && parseFloat(data.age) >= 3 &&
+          diagnosis && (diagnosis.key === "sulfation_recovery" || diagnosis.key === "discharged_general") &&
+          verdict === "REPLACE" && (
+          <Alert type="warn" title="Age consideration" text="Automotive batteries normally last 3–4 years. For long-term reliability it is recommended that the battery be replaced, irrespective of how the battery is currently recovering." />
+        )}
+
+        {/* Diagnosis card */}
+        {diagnosis && (
+          <div className="card" style={{ border: `2px solid ${diagnosis.color}`, background: diagnosis.action === "replace_immediate" ? "#FFF5F5" : diagnosis.action === "recharge" ? "#FFF8E6" : "#FFF0F0" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 8 }}>
+              <span style={{ fontSize: 20 }}>{diagnosis.icon}</span>
+              <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontWeight: 800, fontSize: 15, color: diagnosis.color, textTransform: "uppercase", letterSpacing: 0.5 }}>{diagnosis.title}</div>
+              {diagnosis.action === "replace_immediate" && (
+                <span style={{ marginLeft: "auto", fontFamily: "'Barlow Condensed',sans-serif", fontWeight: 700, fontSize: 10, background: RD, color: WH, borderRadius: 4, padding: "2px 7px", letterSpacing: 1, textTransform: "uppercase" }}>Immediate</span>
+              )}
+            </div>
+            <div className="itext" style={{ fontSize: 13, lineHeight: 1.6 }}>{diagnosis.text}</div>
+          </div>
+        )}
+
+        {/* Flag summary */}
+        <div className="card">
+          <div className="cardtitle" style={{ marginBottom: 8 }}>Diagnostic Flags</div>
+          <div className="flagstrip">
+            {flags.map((f, i) => (
+              <span key={i} className={"flag " + f.sev}>{f.label}</span>
+            ))}
+          </div>
+        </div>
+
+        {/* Readings breakdown */}
+        <div className="rdscard">
+          <div className="rdstitle">All Readings</div>
+          {readings.map((r, i) => (
+            <div key={i} className="rdsrow">
+              <div className="rdslbl">{r.l}</div>
+              <div className="rdsval">{r.v}</div>
+              <div className={"rdsdot " + r.d} />
+            </div>
+          ))}
+        </div>
+
+        {verdict === "REPLACE" && (
+          <div className="card">
+            <div className="cardtitle" style={{ marginBottom: 6 }}>Next Steps</div>
+            <div className="itext">Tap below to find the correct replacement battery for this vehicle via RAA Masterfit.</div>
+            <button className="btnp" style={{ marginTop: 10, fontSize: 14, padding: 12 }} onClick={() => window.open("https://raa-masterfit.clubassist.com.au/MasterFitter", "_blank")}>🛒 Find Replacement Battery</button>
+          </div>
+        )}
+
+        {(verdict === "REPLACE" || verdict === "MONITOR") && (parseFloat(data.chargeRate) < 13.0 || parseFloat(data.chargeRate) > 14.8 || parseFloat(data.parasitic) >= 1.0) && (
+          <Alert type="warn" title="Refer to RAA Approved Repairer" text="A charging system fault or excessive parasitic drain was detected. These issues require trade-qualified diagnosis before or alongside battery replacement." />
+        )}
+      </div>
+
+      <div className="btnbot">
+        <button className="btns" onClick={onNewTest}>Start New Assessment</button>
+      </div>
+    </div>
+  );
+};
+
+// ── CORRELATION SCREEN ──
+const CorrelationScreen = ({ onNext, onBack, data, trend }) => {
+  const chargeRate = parseFloat(data.chargeRate);
+  const finalA = parseFloat(data.acceptFinal);
+  const skipped = data.acceptanceSkipped;
+
+  const getCorrelation = () => {
+    if (skipped || isNaN(finalA) || isNaN(chargeRate)) return null;
+
+    const highCurrent = finalA > 50;
+    const lowCurrent  = finalA < 5;
+    const highVoltage = chargeRate >= 14.4;
+    const lowVoltage  = chargeRate < 13.5;
+    const midVoltage  = chargeRate >= 13.5 && chargeRate < 14.4;
+
+    // Normal correlations
+    if (highCurrent && midVoltage)
+      return { type: "good", title: "Normal correlation", text: `The battery is absorbing a high current of ${finalA}A, which is suppressing the charge rate voltage to ${chargeRate}V. This is expected behaviour — a heavily discharged or sulfated battery will pull the voltage down while accepting high current. This is a normal and healthy correlation.` };
+
+    if (lowCurrent && highVoltage)
+      return { type: "good", title: "Normal correlation", text: `With only ${finalA}A of current being accepted, the charge rate voltage is floating high at ${chargeRate}V. This is expected — a battery near full charge accepts very little current, allowing the voltage to rise. This is a normal and healthy correlation.` };
+
+    if (highCurrent && lowVoltage)
+      return { type: "warn", title: "Review correlation", text: `The battery is drawing ${finalA}A but the charge rate is only ${chargeRate}V. A high current draw should suppress voltage somewhat, but this voltage is lower than expected. Consider a possible charging system limitation or high resistance in the circuit.` };
+
+    if (highCurrent && highVoltage)
+      return { type: "bad", title: "Abnormal correlation", text: `The battery is accepting ${finalA}A while the charge rate voltage remains high at ${chargeRate}V. High current acceptance should suppress charge voltage — a high voltage alongside high current may indicate a sensing fault in the charging system or that the current reading is not accurate. Recommend further investigation.` };
+
+    if (lowCurrent && lowVoltage)
+      return { type: "bad", title: "Abnormal correlation", text: `Only ${finalA}A is being accepted and the charge rate is ${chargeRate}V — both are low. A low charge rate with low current acceptance suggests the charging system is not functioning correctly, or the battery has high internal resistance. Refer to an RAA Approved Repairer.` };
+
+    if (lowCurrent && midVoltage)
+      return { type: "good", title: "Normal correlation", text: `The battery is accepting ${finalA}A with a charge rate of ${chargeRate}V. Low current with a normal charge rate is consistent with a battery that is partially or well charged. This is a normal correlation.` };
+
+    // Mid-range — within normal bounds
+    return { type: "good", title: "Normal correlation", text: `The charge rate of ${chargeRate}V and current acceptance of ${finalA}A are within a normal operating range and correlate as expected. No anomalies detected between these two readings.` };
+  };
+
+  const correlation = getCorrelation();
+
+  return (
+    <div className="scr">
+      <div className="hdr">
+        <button className="back" onClick={onBack}>‹ Back</button>
+        <div className="prog"><div className="progfill" style={{ width: "88%" }} /></div>
+        <div className="steplbl">Analysis · Charge Correlation</div>
+        <div className="hdrtitle">Charge Rate &amp; Acceptance</div>
+        <div className="hdrsub">Combined reading analysis</div>
+      </div>
+      <div className="body">
+        <div className="card">
+          <div className="itext">There is a direct correlation between charge rate voltage and current acceptance. A battery absorbing high current will suppress the charge rate voltage — conversely, a battery accepting low current will allow the voltage to float higher. These two readings must be interpreted together.</div>
+        </div>
+
+        {/* Reading summary */}
+        <div className="rdscard">
+          <div className="rdstitle">Readings Being Compared</div>
+          <div className="rdsrow">
+            <div className="rdslbl">Charge Rate Voltage</div>
+            <div className="rdsval">{data.chargeRate || "—"}V</div>
+            <div className={"rdsdot " + (chargeRate >= 13.5 && chargeRate <= 15.5 ? "dg" : "dw")} />
+          </div>
+          <div className="rdsrow">
+            <div className="rdslbl">Final Current Acceptance</div>
+            <div className="rdsval">{skipped ? "Not tested" : (data.acceptFinal || "—") + "A"}</div>
+            <div className={"rdsdot " + (skipped ? "dw" : trend === "rising" ? "dg" : trend === "falling" ? "dr" : "dw")} />
+          </div>
+        </div>
+
+        {skipped ? (
+          <Alert type="info" title="Current acceptance not tested" text="Correlation analysis is not available as the current acceptance test was skipped. Charge rate voltage has been assessed independently." />
+        ) : correlation ? (
+          <Alert type={correlation.type} title={correlation.title} text={correlation.text} />
+        ) : (
+          <Alert type="info" text="Enter both charge rate and current acceptance readings to see the correlation analysis." />
+        )}
+      </div>
+      <div className="btnbot">
+        <button className="btnp" onClick={onNext}>Continue</button>
+      </div>
+    </div>
+  );
+};
+
+// ── SCREENS CONFIG ──
+const SCREENS = [
+  { id: "save",        lbl: "S.A.V.E" },
+  { id: "precheck",    lbl: "Pre-Check" },
+  { id: "type",        lbl: "Type" },
+  { id: "age",         lbl: "Age" },
+  { id: "discharge",   lbl: "Usage" },
+  { id: "staticv",     lbl: "Static V" },
+  { id: "loadtest",    lbl: "Load Test" },
+  { id: "chargerate",  lbl: "Charge Rate" },
+  { id: "acceptance",  lbl: "Acceptance" },
+  { id: "correlation", lbl: "Correlation" },
+  { id: "parasitic",   lbl: "Parasitic" },
+  { id: "result",      lbl: "Result" },
+];
+
+// ── APP ──
+function App() {
+  const [screen, setScreen] = useState("save");
+  const [data, setData] = useState({});
+  const [trend, setTrend] = useState(null);
+
+  const [loadOutcome, setLoadOutcome] = useState(null);
+
+  const go = (s) => setScreen(s);
+
+  const reset = () => {
+    setData({});
+    setTrend(null);
+    setLoadOutcome(null);
+    go("save");
+  };
+
+  const render = () => {
+    switch (screen) {
+      case "save":       return <SaveScreen onNext={() => go("precheck")} />;
+      case "precheck":   return <PreCheckScreen onNext={() => go("type")} onBack={() => go("save")} />;
+      case "type":       return <BatteryTypeScreen onNext={() => go("age")} onBack={() => go("precheck")} data={data} setData={setData} />;
+      case "age":        return <AgeScreen onNext={() => go("discharge")} onBack={() => go("type")} data={data} setData={setData} />;
+      case "discharge":  return <DischargeScreen onNext={() => go("staticv")} onBack={() => go("age")} data={data} setData={setData} />;
+      case "staticv":    return <StaticVoltageScreen onNext={() => {
+        const sv = parseFloat(data.staticV);
+        sv < 9 ? go("chargerate") : go("loadtest");
+      }} onBack={() => go("discharge")} data={data} setData={setData} />;
+      case "loadtest":   return <LoadTestScreen onNext={(outcome) => {
+        setLoadOutcome(outcome);
+        const sv = parseFloat(data.staticV);
+        const lv = parseFloat(data.loadV);
+        // Failed Cell: OCV 9.0–10.8V + engine cranks YES → straight to result
+        const failedCellExit = sv >= 9.0 && sv <= 10.8 && data.engineCranks === "yes";
+        // Plate Degradation: OCV >12V + Load <9.6V standalone → straight to result
+        const plateDegExit = sv > 12 && lv < 9.6;
+        if (failedCellExit || plateDegExit || outcome === "abort") {
+          go("result");
+        } else {
+          go("chargerate");
+        }
+      }} onBack={() => go("staticv")} data={data} setData={setData} />;
+      case "chargerate": return <ChargeRateScreen onNext={() => go("acceptance")} onBack={() => go("loadtest")} data={data} setData={setData} />;
+      case "acceptance":   return <CurrentAcceptanceScreen onNext={(t) => { setTrend(t); go("correlation"); }} onBack={() => go("chargerate")} data={data} setData={setData} />;
+      case "correlation":  return <CorrelationScreen onNext={() => go("parasitic")} onBack={() => go("acceptance")} data={data} trend={trend} />;
+      case "parasitic":    return <ParasiticScreen onNext={() => go("result")} onBack={() => go("correlation")} data={data} setData={setData} />;
+      case "result":     return <ResultScreen onBack={() => go("parasitic")} data={data} trend={trend} loadOutcome={loadOutcome} onNewTest={reset} />;
+      default: return null;
+    }
+  };
+
+  return (
+    <>
+      <style>{S}</style>
+      <div className="wrap">
+        <div className="tabs">
+          {SCREENS.map(s => (
+            <button key={s.id} className={"tab" + (screen === s.id ? " on" : "")} onClick={() => go(s.id)}>
+              {s.lbl}
+            </button>
+          ))}
+        </div>
+        <div className="applbl">RAA Battery Assessment · v2</div>
+        <div className="phone">
+          <StatusBar />
+          {render()}
+        </div>
+      </div>
+    </>
+  );
+}
+
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+
+  <script>
+    // Register service worker for PWA offline support
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js')
+          .then(reg => console.log('SW registered'))
+          .catch(err => console.log('SW error', err));
+      });
+    }
+  </script>
+</body>
+</html>
